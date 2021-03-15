@@ -29,19 +29,17 @@ func Unpack(encodedString string) (string, error) {
 	encodedString += " " // last symbol ignored, add one new
 	for i, char := range encodedString {
 		charType, number := parseRune(char)
-		if i == 0 && charType == CharTypeNumber {
-			return "", ErrInvalidString
-		}
-		if charType == CharTypeNumber && prevCharType == CharTypeNumber {
-			return "", ErrInvalidString
-		}
 		if prevCharType == CharTypeEscape {
 			charType = CharTypeSymbol
 		}
-		if prevCharType == CharTypeSymbol {
+		switch {
+		case i == 0 && charType == CharTypeNumber:
+			return "", ErrInvalidString
+		case charType == CharTypeNumber && prevCharType == CharTypeNumber:
+			return "", ErrInvalidString
+		case prevCharType == CharTypeSymbol:
 			b.WriteString(strings.Repeat(string(prevCharValue), number))
 		}
-
 		prevCharValue = char
 		prevCharType = charType
 	}
