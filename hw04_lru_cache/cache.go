@@ -34,10 +34,13 @@ func NewCache(capacity int) Cache {
 func (c *lruCache) Set(cacheKey Key, value interface{}) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.queue.Len() >= c.capacity {
+
+	item, wasInCache := c.items[cacheKey]
+
+	if (c.queue.Len() >= c.capacity) && !wasInCache {
 		c.removeLast()
 	}
-	item, wasInCache := c.items[cacheKey]
+
 	if wasInCache {
 		item.Value = cacheItem{Key: cacheKey, Value: value}
 		c.queue.MoveToFront(item)

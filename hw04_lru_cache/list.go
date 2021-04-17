@@ -18,7 +18,6 @@ type ListItem struct {
 }
 
 type LinkedList struct {
-	list      []ListItem
 	frontItem *ListItem
 	backItem  *ListItem
 	size      int
@@ -26,7 +25,6 @@ type LinkedList struct {
 
 func NewList() List {
 	list := new(LinkedList)
-	list.list = make([]ListItem, 0)
 	return list
 }
 
@@ -73,6 +71,9 @@ func (l *LinkedList) PushBack(v interface{}) *ListItem {
 }
 
 func (l *LinkedList) Remove(i *ListItem) {
+	if (l.backItem == nil) && (l.frontItem == nil) {
+		return
+	}
 	l.size--
 	front := i.Prev
 	back := i.Next
