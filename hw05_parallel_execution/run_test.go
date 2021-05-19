@@ -140,7 +140,7 @@ func TestRunFirstTaskWithError(t *testing.T) {
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.Equal(t, runTasksCount, int32(1), "not all tasks were completed")
+		require.Equal(t, int32(workersCount+1), runTasksCount, "not all tasks were completed")
 	})
 
 	t.Run("many tasks - first error, many worker", func(t *testing.T) {
@@ -158,7 +158,7 @@ func TestRunFirstTaskWithError(t *testing.T) {
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.LessOrEqual(t, runTasksCount, int32(1+workersCount*2), "not all tasks were completed")
+		require.LessOrEqual(t, int32(workersCount+1), runTasksCount, "not all tasks were completed")
 	})
 }
 
@@ -177,34 +177,12 @@ func TestRunMiddleTaskWithError(t *testing.T) {
 				tasks = append(tasks, makeSuccessTask(&runTasksCount))
 			}
 		}
-
 		workersCount := 1
 		maxErrorsCount := 1
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.Equal(t, runTasksCount, int32(badWorkerIndex+1), "not all tasks were completed")
-	})
-
-	t.Run("many tasks - middle error, many worker", func(t *testing.T) {
-		tasksCount := 40
-		tasks := make([]Task, 0)
-		var runTasksCount int32
-		badWorkerIndex := 5
-		for i := 0; i < tasksCount; i++ {
-			if i == badWorkerIndex {
-				tasks = append(tasks, makeBadTask(&runTasksCount))
-			} else {
-				tasks = append(tasks, makeSuccessTask(&runTasksCount))
-			}
-		}
-
-		workersCount := 4
-		maxErrorsCount := 1
-		err := Run(tasks, workersCount, maxErrorsCount)
-
-		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.LessOrEqual(t, runTasksCount, int32(badWorkerIndex+1+workersCount+1), "not all tasks were completed")
+		require.Equal(t, int32(badWorkerIndex+2), runTasksCount, "not all tasks were completed")
 	})
 }
 
@@ -225,7 +203,7 @@ func TestRunLastTaskWithError(t *testing.T) {
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.Equal(t, runTasksCount, int32(tasksCount+1), "not all tasks were completed")
+		require.Equal(t, int32(tasksCount+1), runTasksCount, "not all tasks were completed")
 	})
 
 	t.Run("many tasks - last error, many worker", func(t *testing.T) {
@@ -243,19 +221,33 @@ func TestRunLastTaskWithError(t *testing.T) {
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.Equal(t, runTasksCount, int32(tasksCount+1), "not all tasks were completed")
+		require.Equal(t, int32(tasksCount+1), runTasksCount, "not all tasks were completed")
 	})
 }
 
-func TestRunMaxErrorIsZero(t *testing.T) {
+func TestRunWithBadParam(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	t.Run("max errors is 0, single workers", func(t *testing.T) {
+	t.Run("Empty tasks", func(t *testing.T) {
+		tasks := make([]Task, 0)
+		workersCount := 1
+		maxErrorsCount := 1
+		err := Run(tasks, workersCount, maxErrorsCount)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("Empty max errors", func(t *testing.T) {
 		tasksCount := 10
-		tasks := make([]Task, 0, tasksCount)
+		tasks := make([]Task, 0)
 		var runTasksCount int32
+		badWorkerIndex := 5
 
 		for i := 0; i < tasksCount; i++ {
-			tasks = append(tasks, makeBadTask(&runTasksCount))
+			if i == badWorkerIndex {
+				tasks = append(tasks, makeBadTask(&runTasksCount))
+			} else {
+				tasks = append(tasks, makeSuccessTask(&runTasksCount))
+			}
 		}
 
 		workersCount := 1
@@ -263,48 +255,69 @@ func TestRunMaxErrorIsZero(t *testing.T) {
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.Equal(t, runTasksCount, int32(1), "not all tasks were completed")
+		require.Equal(t, int32(badWorkerIndex+2), runTasksCount, "not all tasks were completed")
 	})
 
-	t.Run("max errors is 0, many workers", func(t *testing.T) {
+	t.Run("Empty workers", func(t *testing.T) {
 		tasksCount := 10
-		tasks := make([]Task, 0, tasksCount)
-		var runTasksCount int32
-
-		for i := 0; i < tasksCount; i++ {
-			tasks = append(tasks, makeBadTask(&runTasksCount))
-		}
-
-		workersCount := 4
-		maxErrorsCount := 0
-		err := Run(tasks, workersCount, maxErrorsCount)
-
-		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.Equal(t, runTasksCount, int32(workersCount), "not all tasks were completed")
-	})
-}
-
-func TestRunComplete(t *testing.T) {
-	defer goleak.VerifyNone(t)
-	t.Run("many tasks - many error, many worker", func(t *testing.T) {
-		tasksCount := 40
 		tasks := make([]Task, 0)
 		var runTasksCount int32
+		badWorkerIndex := 5
+
 		for i := 0; i < tasksCount; i++ {
-			if i%4 == 0 {
+			if i == badWorkerIndex {
 				tasks = append(tasks, makeBadTask(&runTasksCount))
 			} else {
 				tasks = append(tasks, makeSuccessTask(&runTasksCount))
 			}
 		}
 
-		workersCount := 4
-		maxErrorsCount := 5
+		workersCount := 0
+		maxErrorsCount := 1
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
-		require.LessOrEqual(t, runTasksCount, int32(maxErrorsCount*4+workersCount), "not all tasks were completed")
+		require.Equal(t, int32(badWorkerIndex+2), runTasksCount, "not all tasks were completed")
 	})
+}
+
+// Сохранил на будущее пример из разбора задания.
+func TestRunConcurrency(t *testing.T) {
+	const workersCount = 5
+	tasks := make([]Task, workersCount)
+
+	waitCh := make(chan struct{})
+	var runTasksCount int32
+	for i := 0; i < len(tasks); i++ {
+		tasks[i] = func() error {
+			atomic.AddInt32(&runTasksCount, 1)
+			<-waitCh
+			return nil
+		}
+	}
+
+	runErrCh := make(chan error, 1)
+	go func() {
+		runErrCh <- Run(tasks, workersCount, 0)
+	}()
+
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&runTasksCount) == workersCount
+	}, time.Second, time.Millisecond)
+
+	close(waitCh)
+
+	var runErr error
+	require.Eventually(t, func() bool {
+		select {
+		case runErr = <-runErrCh:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, time.Millisecond)
+
+	require.NoError(t, runErr)
 }
 
 func makeTest(t *testing.T, tasksCount int, workersCount int) {
@@ -319,7 +332,7 @@ func makeTest(t *testing.T, tasksCount int, workersCount int) {
 	err := Run(tasks, workersCount, maxErrorsCount)
 
 	require.NoError(t, err)
-	require.Equal(t, runTasksCount, int32(tasksCount), "not all tasks were completed")
+	require.Equal(t, int32(tasksCount), runTasksCount, "not all tasks were completed")
 }
 
 func makeSuccessTask(runTasksCount *int32) func() error {
