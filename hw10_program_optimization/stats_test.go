@@ -37,3 +37,44 @@ func TestGetDomainStat(t *testing.T) {
 		require.Equal(t, DomainStat{}, result)
 	})
 }
+
+func TestGetHostExtractor_FoundEmail(t *testing.T) {
+	tests := []struct {
+		input    string
+		domain   string
+		expected string
+	}{
+		{input: "va.sya@test.gov", domain: "gov", expected: "test.gov"},
+		{input: "PETRO.VICH@gmail.com", domain: "com", expected: "gmail.com"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			extractor := GetHostExtractor(tc.domain)
+			host, found := extractor(tc.input)
+			require.True(t, found)
+			require.Equal(t, tc.expected, host)
+		})
+	}
+}
+
+func TestGetHostExtractor_NotFoundEmail(t *testing.T) {
+	tests := []struct {
+		input    string
+		domain   string
+		expected string
+	}{
+		{input: "va.sya@test.gov", domain: "com", expected: "test.gov"},
+		{input: "gmail.com", domain: "com", expected: "gmail.com"}, // it is not email
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			extractor := GetHostExtractor(tc.domain)
+			_, found := extractor(tc.input)
+			require.False(t, found)
+		})
+	}
+}

@@ -1,67 +1,47 @@
 package hw10programoptimization
 
 import (
-	"encoding/json"
+	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"regexp"
 	"strings"
 )
-
-type User struct {
-	ID       int
-	Name     string
-	Username string
-	Email    string
-	Phone    string
-	Password string
-	Address  string
-}
 
 type DomainStat map[string]int
 
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
-	if err != nil {
-		return nil, fmt.Errorf("get users error: %w", err)
-	}
-	return countDomains(u, domain)
-}
-
-type users [100_000]User
-
-func getUsers(r io.Reader) (result users, err error) {
-	content, err := ioutil.ReadAll(r)
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
-			return
-		}
-		result[i] = user
-	}
-	return
-}
-
-func countDomains(u users, domain string) (DomainStat, error) {
 	result := make(DomainStat)
-
-	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
-		if err != nil {
-			return nil, err
+	scanner := bufio.NewScanner(r)
+	extractor := GetHostExtractor(domain)
+	for scanner.Scan() {
+		line := scanner.Text()
+		c := strings.Split(line, "\"Email\":")
+		if len(c) < 2 {
+			return nil, fmt.Errorf("bad input json: %s", line)
 		}
-
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
+		c = strings.Split(c[1], "\",")
+		host, ok := extractor(c[0])
+		if !ok {
+			continue
 		}
+		v := result[host]
+		v++
+		result[host] = v
 	}
 	return result, nil
+}
+
+func GetHostExtractor(domain string) func(email string) (string, bool) {
+	sv := "." + domain
+	return func(email string) (string, bool) {
+		email = strings.ToLower(email)
+		if strings.HasSuffix(email, sv) {
+			info := strings.SplitN(email, "@", 2)
+			if len(info) < 2 {
+				return "", false
+			}
+			return info[1], true
+		}
+		return "", false
+	}
 }
