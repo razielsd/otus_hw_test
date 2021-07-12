@@ -15,20 +15,26 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 	extractor := GetHostExtractor(domain)
 	for scanner.Scan() {
 		line := scanner.Text()
-		c := strings.Split(line, "\"Email\":")
-		if len(c) < 2 {
+		email, err := ExtractEmail(line)
+		if err != nil {
 			return nil, fmt.Errorf("bad input json: %s", line)
 		}
-		c = strings.Split(c[1], "\",")
-		host, ok := extractor(c[0])
+		host, ok := extractor(email)
 		if !ok {
 			continue
 		}
-		v := result[host]
-		v++
-		result[host] = v
+		result[host]++
 	}
 	return result, nil
+}
+
+func ExtractEmail(line string) (string, error) {
+	c := strings.Split(line, "\"Email\":")
+	if len(c) < 2 {
+		return "", fmt.Errorf("bad input json: %s", line)
+	}
+	c = strings.Split(c[1], "\",")
+	return c[0], nil
 }
 
 func GetHostExtractor(domain string) func(email string) (string, bool) {

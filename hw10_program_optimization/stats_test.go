@@ -38,6 +38,19 @@ func TestGetDomainStat(t *testing.T) {
 	})
 }
 
+func TestExtractEmail_ValidJson(t *testing.T) {
+	js := `{"Id":2,"Name":"Brian Olson","Username":"non_quia_id","Email":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
+	email, err := ExtractEmail(js)
+	require.NoError(t, err)
+	require.Equal(t, "\"FrancesEllis@Quinu.edu", email)
+}
+
+func TestExtractEmail_InvalidJson(t *testing.T) {
+	js := `{"Id":2,"Name":"Brian Olson","Username":"non_quia_id","NoMail":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
+	_, err := ExtractEmail(js)
+	require.Error(t, err)
+}
+
 func TestGetHostExtractor_FoundEmail(t *testing.T) {
 	tests := []struct {
 		input    string
