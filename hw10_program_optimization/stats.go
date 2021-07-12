@@ -2,9 +2,11 @@ package hw10programoptimization
 
 import (
 	"bufio"
-	"fmt"
+	"errors"
 	"io"
 	"strings"
+
+	"github.com/valyala/fastjson"
 )
 
 type DomainStat map[string]int
@@ -12,12 +14,13 @@ type DomainStat map[string]int
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 	result := make(DomainStat)
 	scanner := bufio.NewScanner(r)
+	scanner.Split(bufio.ScanLines)
 	extractor := GetHostExtractor(domain)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := scanner.Bytes()
 		email, err := ExtractEmail(line)
 		if err != nil {
-			return nil, fmt.Errorf("bad input json: %s", line)
+			return nil, err
 		}
 		host, ok := extractor(email)
 		if !ok {
@@ -28,19 +31,19 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 	return result, nil
 }
 
-func ExtractEmail(line string) (string, error) {
-	pos := strings.Index(line, "\"Email\":")
-	if pos < 0 {
-		return "", fmt.Errorf("bad input json: %s", line)
+func ExtractEmail(line []byte) (string, error) {
+	if len(line) < 1 {
+		return "", errors.New("empty json")
 	}
-	line = line[pos+8:]
-
-	parts := strings.SplitN(line, "\"", 3)
-	if len(parts) < 3 {
-		return "", fmt.Errorf("bad input json: %s", line)
+	if err := fastjson.ValidateBytes(line); err != nil {
+		return "", err
 	}
-
-	return parts[1], nil
+	email := fastjson.GetString(line, "Email")
+	// считаем, что у нас чаще есть поле Email, чем его нету
+	if (email == "") && !fastjson.Exists(line, "Email") {
+		return "", errors.New("not found file Email")
+	}
+	return email, nil
 }
 
 func GetHostExtractor(domain string) func(email string) (string, bool) {

@@ -40,14 +40,25 @@ func TestGetDomainStat(t *testing.T) {
 
 func TestExtractEmail_ValidJson(t *testing.T) {
 	js := `{"Id":2,"Name":"Brian Olson","Username":"non_quia_id","Email":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
-	email, err := ExtractEmail(js)
+	email, err := ExtractEmail([]byte(js))
 	require.NoError(t, err)
 	require.Equal(t, "FrancesEllis@Quinu.edu", email)
 }
 
-func TestExtractEmail_InvalidJson(t *testing.T) {
+func TestExtractEmail_InvalidJson_BadStruct(t *testing.T) {
+	js := `{"Id":2:"Brian Olson","Username":"non_quia_id","Email":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
+	_, err := ExtractEmail([]byte(js))
+	require.Error(t, err)
+}
+
+func TestExtractEmail_InvalidJson_NoFieldEmail(t *testing.T) {
 	js := `{"Id":2,"Name":"Brian Olson","Username":"non_quia_id","NoMail":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
-	_, err := ExtractEmail(js)
+	_, err := ExtractEmail([]byte(js))
+	require.Error(t, err)
+}
+
+func TestExtractEmail_InvalidJson_EmptyJson(t *testing.T) {
+	_, err := ExtractEmail([]byte(``))
 	require.Error(t, err)
 }
 
