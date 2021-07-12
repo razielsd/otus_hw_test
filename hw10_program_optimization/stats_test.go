@@ -42,7 +42,7 @@ func TestExtractEmail_ValidJson(t *testing.T) {
 	js := `{"Id":2,"Name":"Brian Olson","Username":"non_quia_id","Email":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
 	email, err := ExtractEmail(js)
 	require.NoError(t, err)
-	require.Equal(t, "\"FrancesEllis@Quinu.edu", email)
+	require.Equal(t, "FrancesEllis@Quinu.edu", email)
 }
 
 func TestExtractEmail_InvalidJson(t *testing.T) {
