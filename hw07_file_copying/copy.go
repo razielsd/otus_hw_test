@@ -6,15 +6,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math"
 	"os"
 
 	"github.com/cheggaaa/pb/v3"
-)
-
-const (
-	BlockCount   = 100
-	MinBlockSize = 10
 )
 
 var (
@@ -42,14 +36,14 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	if os.IsNotExist(err) {
 		return ErrorFileNotFound
 	} else if err != nil {
-		return err
+		return fmt.Errorf("cannot open file: %w", err)
 	}
 
 	defer srcFile.Close()
 
 	si, err := srcFile.Stat()
 	if err != nil {
-		return ErrorUnableGetStat
+		return fmt.Errorf("%w: %v", ErrorUnableGetStat, err)
 	}
 
 	if !si.Mode().IsRegular() {
@@ -77,30 +71,22 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 		return ErrorCreateTmpFile
 	}
 
-	blockSize, err := GetBlockSize(limit)
 	if err != nil {
 		return err
 	}
-	var cpsize int64 = 0
 	bar := pb.Full.Start64(limit)
-	for cpsize < limit {
-		if cpsize+blockSize > limit {
-			blockSize = limit - cpsize
-		}
-		buff := make([]byte, blockSize)
-		_, err = srcFile.ReadAt(buff, offset)
-		if err != nil {
-			return ErrorCopyFile
-		}
-		barReader := bar.NewProxyReader(bytes.NewReader(buff))
-		written, err := io.CopyN(destFile, barReader, blockSize)
-		if err != nil {
-			return err
-		}
-		cpsize += written
-		offset += blockSize
+	defer bar.Finish()
+	buff := make([]byte, limit)
+	_, err = srcFile.ReadAt(buff, offset)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrorCopyFile, err)
 	}
-	bar.Finish()
+	barReader := bar.NewProxyReader(bytes.NewReader(buff))
+	_, err = io.CopyN(destFile, barReader, limit)
+
+	if err != nil {
+		return err
+	}
 
 	if err = destFile.Close(); err != nil {
 		return err
@@ -110,19 +96,4 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	}
 
 	return nil
-}
-
-func GetBlockSize(limit int64) (int64, error) {
-	if limit < 1 {
-		return 0, fmt.Errorf("logic error, read limit(%d) is lower than 1", limit)
-	}
-	size := math.Ceil(float64(limit) / float64(BlockCount))
-	si := int64(size)
-	if si < MinBlockSize {
-		si = MinBlockSize
-	}
-	if si > limit {
-		si = limit
-	}
-	return si, nil
 }
