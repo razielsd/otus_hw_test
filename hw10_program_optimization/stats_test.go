@@ -75,8 +75,7 @@ func TestGetHostExtractor_FoundEmail(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
-			extractor := GetHostExtractor(tc.domain)
-			host, found := extractor(tc.input)
+			host, found := ExtractHost(tc.domain, tc.input)
 			require.True(t, found)
 			require.Equal(t, tc.expected, host)
 		})
@@ -96,8 +95,7 @@ func TestGetHostExtractor_NotFoundEmail(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
-			extractor := GetHostExtractor(tc.domain)
-			_, found := extractor(tc.input)
+			_, found := ExtractHost(tc.domain, tc.input)
 			require.False(t, found)
 		})
 	}
