@@ -15,13 +15,14 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 	result := make(DomainStat)
 	scanner := bufio.NewScanner(r)
 	scanner.Split(bufio.ScanLines)
+	extractor := GetHostExtractor(domain)
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		email, err := ExtractEmail(line)
 		if err != nil {
 			return nil, err
 		}
-		host, ok := ExtractHost(domain, email)
+		host, ok := extractor(email)
 		if !ok {
 			continue
 		}
@@ -45,14 +46,17 @@ func ExtractEmail(line []byte) (string, error) {
 	return email, nil
 }
 
-func ExtractHost(domain, email string) (string, bool) {
-	email = strings.ToLower(email)
-	if strings.HasSuffix(email, "."+domain) {
-		info := strings.SplitN(email, "@", 2)
-		if len(info) < 2 {
-			return "", false
+func GetHostExtractor(domain string) func(email string) (string, bool) {
+	sv := "." + domain
+	return func(email string) (string, bool) {
+		email = strings.ToLower(email)
+		if strings.HasSuffix(email, sv) {
+			info := strings.SplitN(email, "@", 2)
+			if len(info) < 2 {
+				return "", false
+			}
+			return info[1], true
 		}
-		return info[1], true
+		return "", false
 	}
-	return "", false
 }
