@@ -2,35 +2,35 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"testing"
 
-	"github.com/hlubek/readercomp"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCopy_EmptySrcPath(t *testing.T) {
 	err := Copy("", "path", 100, 0)
-	require.ErrorIs(t, ErrorEmptySourcePath, err)
+	require.ErrorIs(t, ErrEmptySourcePath, err)
 }
 
 func TestCopy_EmptyDestPath(t *testing.T) {
 	err := Copy("src", "", 100, 0)
-	require.ErrorIs(t, ErrorEmptyDestinationPath, err)
+	require.ErrorIs(t, ErrEmptyDestinationPath, err)
 }
 
 func TestCopy_FileNotFound(t *testing.T) {
 	err := Copy("./testdata/file_not_found", "path", 100, 0)
-	require.ErrorIs(t, ErrorFileNotFound, err)
+	require.ErrorIs(t, ErrFileNotFound, err)
 }
 
 func TestCopy_CopyNonRegular(t *testing.T) {
 	err := Copy("./testdata", "/tmp/copyreg.txt", 100, 0)
-	require.ErrorIs(t, ErrorCopyNonRegular, err)
+	require.ErrorIs(t, ErrCopyNonRegular, err)
 }
 
 func TestCopy_CopyEmptyFile(t *testing.T) {
 	err := Copy("./testdata/emptyfile.txt", "/tmp/copyreg.txt", 100, 0)
-	require.ErrorIs(t, ErrorEmptySrcFile, err)
+	require.ErrorIs(t, ErrEmptySrcFile, err)
 }
 
 /*
@@ -101,9 +101,11 @@ func TestCopy_ValidParams_SuccesCopy(t *testing.T) {
 			err := Copy(tc.src, dest, tc.offset, tc.limit)
 			require.NoError(t, err)
 			require.FileExists(t, dest)
-			ok, err := readercomp.FilesEqual(tc.expected, dest)
-			require.NoError(t, err, "error compare files")
-			require.True(t, ok, "copied file is not expected")
+			expData, err := ioutil.ReadFile(tc.expected)
+			require.NoError(t, err)
+			destData, err := ioutil.ReadFile(dest)
+			require.NoError(t, err)
+			require.Equal(t, expData, destData, "Files not equal")
 		})
 	}
 }

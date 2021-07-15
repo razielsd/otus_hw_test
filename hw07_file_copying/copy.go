@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -12,29 +11,29 @@ import (
 )
 
 var (
-	ErrorEmptySourcePath      = errors.New("empty source path")
-	ErrorEmptyDestinationPath = errors.New("empty destination path")
-	ErrorFileNotFound         = errors.New("file not found")
-	ErrorUnableGetStat        = errors.New("unable get file stat")
-	ErrorCopyNonRegular       = errors.New("unable to copy non-regular file")
-	ErrOffsetExceedsFileSize  = errors.New("offset greater than limit")
-	ErrorCreateTmpFile        = errors.New("unable to create tmp file")
-	ErrorCopyFile             = errors.New("error due reading file")
-	ErrorEmptySrcFile         = errors.New("empty source file")
+	ErrEmptySourcePath       = errors.New("empty source path")
+	ErrEmptyDestinationPath  = errors.New("empty destination path")
+	ErrFileNotFound          = errors.New("file not found")
+	ErrUnableGetStat         = errors.New("unable get file stat")
+	ErrCopyNonRegular        = errors.New("unable to copy non-regular file")
+	ErrOffsetExceedsFileSize = errors.New("offset greater than limit")
+	ErrCreateTmpFile         = errors.New("unable to create tmp file")
+	ErrCopyFile              = errors.New("error due reading file")
+	ErrEmptySrcFile          = errors.New("empty source file")
 )
 
 func Copy(fromPath, toPath string, offset, limit int64) error {
 	if len(fromPath) == 0 {
-		return ErrorEmptySourcePath
+		return ErrEmptySourcePath
 	}
 
 	if len(toPath) == 0 {
-		return ErrorEmptyDestinationPath
+		return ErrEmptyDestinationPath
 	}
 
 	srcFile, err := os.Open(fromPath)
 	if os.IsNotExist(err) {
-		return ErrorFileNotFound
+		return ErrFileNotFound
 	} else if err != nil {
 		return fmt.Errorf("cannot open file: %w", err)
 	}
@@ -43,15 +42,15 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 
 	si, err := srcFile.Stat()
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrorUnableGetStat, err)
+		return fmt.Errorf("%w: %v", ErrUnableGetStat, err)
 	}
 
 	if !si.Mode().IsRegular() {
-		return ErrorCopyNonRegular
+		return ErrCopyNonRegular
 	}
 
 	if si.Size() == 0 {
-		return ErrorEmptySrcFile
+		return ErrEmptySrcFile
 	}
 
 	if si.Size() < offset {
@@ -68,31 +67,28 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 
 	destFile, err := ioutil.TempFile("/tmp", "cp")
 	if err != nil {
-		return ErrorCreateTmpFile
+		return ErrCreateTmpFile
 	}
 
-	if err != nil {
-		return err
-	}
 	bar := pb.Full.Start64(limit)
 	defer bar.Finish()
-	buff := make([]byte, limit)
-	_, err = srcFile.ReadAt(buff, offset)
+	_, err = srcFile.Seek(offset, 0)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrorCopyFile, err)
+		return fmt.Errorf("%w: %v", ErrCopyFile, err)
 	}
-	barReader := bar.NewProxyReader(bytes.NewReader(buff))
+
+	barReader := bar.NewProxyReader(io.LimitReader(srcFile, limit))
 	_, err = io.CopyN(destFile, barReader, limit)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrCopyFile, err)
 	}
 
 	if err = destFile.Close(); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrCopyFile, err)
 	}
 	if err = os.Rename(destFile.Name(), toPath); err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrCopyFile, err)
 	}
 
 	return nil
