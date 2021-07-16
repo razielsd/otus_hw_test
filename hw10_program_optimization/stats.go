@@ -1,67 +1,59 @@
 package hw10programoptimization
 
 import (
-	"encoding/json"
-	"fmt"
+	"bufio"
+	"errors"
 	"io"
-	"io/ioutil"
-	"regexp"
 	"strings"
-)
 
-type User struct {
-	ID       int
-	Name     string
-	Username string
-	Email    string
-	Phone    string
-	Password string
-	Address  string
-}
+	"github.com/valyala/fastjson"
+)
 
 type DomainStat map[string]int
 
 func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
-	u, err := getUsers(r)
-	if err != nil {
-		return nil, fmt.Errorf("get users error: %w", err)
-	}
-	return countDomains(u, domain)
-}
-
-type users [100_000]User
-
-func getUsers(r io.Reader) (result users, err error) {
-	content, err := ioutil.ReadAll(r)
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
-		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
-			return
-		}
-		result[i] = user
-	}
-	return
-}
-
-func countDomains(u users, domain string) (DomainStat, error) {
 	result := make(DomainStat)
-
-	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
+	scanner := bufio.NewScanner(r)
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		email, err := ExtractEmail(line)
 		if err != nil {
 			return nil, err
 		}
-
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
+		host, ok := GetHost(domain, email)
+		if !ok {
+			continue
 		}
+		result[host]++
 	}
 	return result, nil
+}
+
+func ExtractEmail(line []byte) (string, error) {
+	if len(line) < 1 {
+		return "", errors.New("empty json")
+	}
+	email := fastjson.GetString(line, "Email")
+	// считаем, что у нас чаще json валидный и есть поле Email, чем его нету
+	if email == "" {
+		if err := fastjson.ValidateBytes(line); err != nil {
+			return "", err
+		} else if !fastjson.Exists(line, "Email") {
+			return "", errors.New("not found file Email")
+		}
+	}
+	return email, nil
+}
+
+func GetHost(domain, email string) (string, bool) {
+	email = strings.ToLower(email)
+	if strings.HasSuffix(email, "."+domain) {
+		info := strings.SplitN(email, "@", 2)
+		if len(info) < 2 {
+			return "", false
+		}
+		return info[1], true
+	}
+	return "", false
 }

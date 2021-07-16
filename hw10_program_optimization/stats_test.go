@@ -37,3 +37,66 @@ func TestGetDomainStat(t *testing.T) {
 		require.Equal(t, DomainStat{}, result)
 	})
 }
+
+func TestExtractEmail_ValidJson(t *testing.T) {
+	js := `{"Id":2,"Name":"Brian Olson","Username":"non_quia_id","Email":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
+	email, err := ExtractEmail([]byte(js))
+	require.NoError(t, err)
+	require.Equal(t, "FrancesEllis@Quinu.edu", email)
+}
+
+func TestExtractEmail_InvalidJson_BadStruct(t *testing.T) {
+	js := `{"Id":2:"Brian Olson","Username":"non_quia_id","Email":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
+	_, err := ExtractEmail([]byte(js))
+	require.Error(t, err)
+}
+
+func TestExtractEmail_InvalidJson_NoFieldEmail(t *testing.T) {
+	js := `{"Id":2,"Name":"Brian Olson","Username":"non_quia_id","NoMail":"FrancesEllis@Quinu.edu","Phone":"237-75-34","Password":"cmEPhX8","Address":"Butterfield Junction 74"}`
+	_, err := ExtractEmail([]byte(js))
+	require.Error(t, err)
+}
+
+func TestExtractEmail_InvalidJson_EmptyJson(t *testing.T) {
+	_, err := ExtractEmail([]byte(``))
+	require.Error(t, err)
+}
+
+func TestGetHostExtractor_FoundEmail(t *testing.T) {
+	tests := []struct {
+		input    string
+		domain   string
+		expected string
+	}{
+		{input: "va.sya@test.gov", domain: "gov", expected: "test.gov"},
+		{input: "PETRO.VICH@gmail.com", domain: "com", expected: "gmail.com"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			host, found := GetHost(tc.domain, tc.input)
+			require.True(t, found)
+			require.Equal(t, tc.expected, host)
+		})
+	}
+}
+
+func TestGetHostExtractor_NotFoundEmail(t *testing.T) {
+	tests := []struct {
+		input    string
+		domain   string
+		expected string
+	}{
+		{input: "va.sya@test.gov", domain: "com", expected: "test.gov"},
+		{input: "gmail.com", domain: "com", expected: "gmail.com"}, // it is not email
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			_, found := GetHost(tc.domain, tc.input)
+			require.False(t, found)
+		})
+	}
+}
