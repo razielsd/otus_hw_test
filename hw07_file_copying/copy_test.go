@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -97,7 +98,7 @@ func TestCopy_ValidParams_SuccesCopy(t *testing.T) {
 		tc := tc
 		name := fmt.Sprintf("cp_limit_%d_offset_%d", tc.limit, tc.offset)
 		t.Run(name, func(t *testing.T) {
-			dest := t.TempDir() + "/" + tc.dest + ".txt"
+			dest := filepath.Join(t.TempDir(), tc.dest)
 			err := Copy(tc.src, dest, tc.offset, tc.limit)
 			require.NoError(t, err)
 			require.FileExists(t, dest)
