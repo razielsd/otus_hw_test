@@ -130,12 +130,11 @@ func TestValidate_BadValues(t *testing.T) {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
 			tc := tc
 			err := Validate(tc.in)
-			require.ErrorAs(t, err, &ValidationErrors{})
-			ve, ok := err.(ValidationErrors)
-			require.True(t, ok)
+			var ve ValidationErrors
+			require.ErrorAs(t, err, &ve)
 
 			extractName := func(v ValidationErrors) []string {
-				r := []string{}
+				var r []string
 				for _, f := range v {
 					r = append(r, f.Field)
 				}
@@ -251,8 +250,8 @@ func TestValidate_BadCheckInTag(t *testing.T) {
 }
 
 func assertFirstValidationError(t *testing.T, err error, fieldName string, expErr error) {
-	ve, ok := err.(ValidationErrors)
-	require.True(t, ok, "Unable cast error to ValidationErrors")
+	var ve ValidationErrors
+	require.ErrorAs(t, err, &ve)
 	require.Len(t, ve, 1)
 	fieldErr := ve[0]
 	require.Error(t, fieldErr, "error not found for field")
