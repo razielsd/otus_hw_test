@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"unicode"
 )
 
 const (
@@ -21,15 +20,17 @@ var (
 func Validate(v interface{}) error {
 	refT := reflect.TypeOf(v)
 	if refT.Kind() != reflect.Struct {
-		return ErrRequireStruct
+		return fmt.Errorf("%w: got %s", ErrRequireStruct, refT.Kind().String())
 	}
 	refV := reflect.ValueOf(v)
 
-	ErrResult := ValidationErrors{}
+	errResult := ValidationErrors{}
 	for i := 0; i < refT.NumField(); {
 		field := refT.Field(i)
 		i++
-		if !isUpperFirst(field.Name) {
+
+		fieldValue := refV.FieldByName(field.Name)
+		if !fieldValue.CanInterface() {
 			continue
 		}
 		tag, ok := field.Tag.Lookup(structKey)
@@ -38,16 +39,16 @@ func Validate(v interface{}) error {
 		}
 		tagInfo, pErr := parseTag(tag)
 		if pErr != nil {
-			ErrResult = append(ErrResult, newValidationError(field.Name, pErr))
+			errResult = append(errResult, newValidationError(field.Name, pErr))
 			continue
 		}
-		err := validateField(field.Name, refV.FieldByName(field.Name), tagInfo)
+		err := validateField(field.Name, fieldValue, tagInfo)
 		if err != nil {
-			ErrResult = append(ErrResult, err...)
+			errResult = append(errResult, err...)
 		}
 	}
-	if len(ErrResult) > 0 {
-		return ErrResult
+	if len(errResult) > 0 {
+		return errResult
 	}
 	return nil
 }
@@ -95,13 +96,6 @@ func validateBasicTypeField(fieldName string, value reflect.Value, tagInfo map[s
 		}
 	}
 	return nil
-}
-
-func isUpperFirst(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	return unicode.IsUpper([]rune(s)[0])
 }
 
 func parseTag(tag string) (map[string]string, error) {

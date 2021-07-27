@@ -25,6 +25,7 @@ type (
 
 	App struct {
 		Version string `validate:"len:5"`
+		key     string `validate:"len:3"`
 	}
 
 	Token struct {
@@ -60,6 +61,7 @@ func TestValidate_ValidValues(t *testing.T) {
 		{
 			in: App{
 				Version: "1.0.1",
+				key:     "12345678",
 			},
 		},
 		{
@@ -153,24 +155,6 @@ func TestValidate_BadValues(t *testing.T) {
 func TestValidate_NotStruct_Error(t *testing.T) {
 	err := Validate(1)
 	require.ErrorIs(t, err, ErrRequireStruct)
-}
-
-func TestIsUpperFirst_IsUpper(t *testing.T) {
-	tests := []string{"U", "Upper", "Б", "Большой"}
-	for i := range tests {
-		t.Run(fmt.Sprintf("case %s", tests[i]), func(t *testing.T) {
-			require.True(t, isUpperFirst(tests[i]))
-		})
-	}
-}
-
-func TestIsUpperFirst_NotUpper(t *testing.T) {
-	tests := []string{"", "l", "lower", "м", "маленький", "lOweR", "мАленькиЙ", "_", "1"}
-	for i := range tests {
-		t.Run(fmt.Sprintf("case %s", tests[i]), func(t *testing.T) {
-			require.False(t, isUpperFirst(tests[i]))
-		})
-	}
 }
 
 func TestParseTag_ValidTag_Success(t *testing.T) {

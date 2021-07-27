@@ -30,12 +30,12 @@ func newValidationError(fieldName string, err error) ValidationError {
 }
 
 func (v ValidationErrors) Error() string {
-	b := strings.Builder{}
+	errStr := ""
 	for _, err := range v {
-		b.WriteString(fmt.Sprintf("%s: %s, ", err.Field, err.Err))
+		errStr = fmt.Sprintf("%s%s: %s, ", errStr, err.Field, err.Err)
 	}
 
-	return strings.TrimSuffix(b.String(), ", ")
+	return strings.TrimSuffix(errStr, ", ")
 }
 
 func (v ValidationError) Error() string {
