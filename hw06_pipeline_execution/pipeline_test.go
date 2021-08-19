@@ -29,6 +29,27 @@ func TestPipeline(t *testing.T) {
 		}
 	}
 
+	t.Run("single stage", func(t *testing.T) {
+		stages := []Stage{
+			g("Multiplier (* 2)", func(v interface{}) interface{} { return v.(int) * 2 }),
+		}
+		in := make(Bi)
+		data := []int{1, 2, 3, 4, 5}
+
+		go func() {
+			for _, v := range data {
+				in <- v
+			}
+			close(in)
+		}()
+
+		result := make([]int, 0, 10)
+		for s := range ExecutePipeline(in, nil, stages...) {
+			result = append(result, s.(int))
+		}
+		require.Equal(t, []int{2, 4, 6, 8, 10}, result)
+	})
+
 	stages := []Stage{
 		g("Dummy", func(v interface{}) interface{} { return v }),
 		g("Multiplier (* 2)", func(v interface{}) interface{} { return v.(int) * 2 }),
@@ -108,5 +129,43 @@ func TestPipeline(t *testing.T) {
 			result = append(result, s.(int))
 		}
 		require.Equal(t, data, result)
+	})
+}
+
+func TestSingleStage(t *testing.T) {
+	// Stage generator
+	g := func(_ string, f func(v interface{}) interface{}) Stage {
+		return func(in In) Out {
+			out := make(Bi)
+			go func() {
+				defer close(out)
+				for v := range in {
+					time.Sleep(sleepPerStage)
+					out <- f(v)
+				}
+			}()
+			return out
+		}
+	}
+
+	t.Run("single stage", func(t *testing.T) {
+		stages := []Stage{
+			g("Multiplier (* 2)", func(v interface{}) interface{} { return v.(int) * 2 }),
+		}
+		in := make(Bi)
+		data := []int{1, 2, 3, 4, 5}
+
+		go func() {
+			for _, v := range data {
+				in <- v
+			}
+			close(in)
+		}()
+
+		result := make([]int, 0, 10)
+		for s := range ExecutePipeline(in, nil, stages...) {
+			result = append(result, s.(int))
+		}
+		require.Equal(t, []int{2, 4, 6, 8, 10}, result)
 	})
 }
