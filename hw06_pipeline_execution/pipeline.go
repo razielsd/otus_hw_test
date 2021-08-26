@@ -45,33 +45,13 @@ func ExecutePipeline(in In, done In, stages ...Stage) Out {
 	if len(stages) == 0 {
 		return in
 	}
-	pineIn := make(Bi)
-	sin := pineIn
+	sin := in
 	var out Bi
 	for _, stage := range stages {
-		out = make(Bi, 1000)
+		out = make(Bi)
 		go stagePipe(sin, out, done, stage)
 		sin = out
 	}
-	go func() {
-	L:
-		for {
-			select {
-			case v, ok := <-in:
-				if !ok {
-					break L
-				}
-				select {
-				case pineIn <- v:
-				case <-done:
-					break L
-				}
-			case <-done:
-				break L
-			}
-		}
-		close(pineIn)
-	}()
 
 	return out
 }
